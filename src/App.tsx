@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from 'react'
+
 const DOWNLOAD_URL = 'https://github.com/NikAtNight/localflow/releases/latest'
 const GITHUB_URL = 'https://github.com/NikAtNight/localflow'
 
@@ -6,7 +8,7 @@ const WAVE_BARS = [14, 26, 40, 58, 44, 70, 52, 82, 60, 88, 66, 90, 58, 76, 46, 6
 const STEPS = [
   {
     title: 'Hold the hotkey',
-    body: 'Works in any app. LocalFlow waits in the menubar, no window to find.',
+    body: 'Hold Right Option by default. You can switch it to Right Command or Fn/Globe. LocalFlow stays in the menubar.',
   },
   {
     title: 'Speak',
@@ -14,38 +16,38 @@ const STEPS = [
   },
   {
     title: 'Transcribed on-device',
-    body: 'WhisperKit runs on the Neural Engine. An optional local LLM tidies it up.',
+    body: 'WhisperKit runs on-device through CoreML. LocalFlow ships with Large v3 Turbo, its most accurate model, ready to use.',
   },
   {
     title: 'Release',
-    body: 'The text pastes into whatever had focus, like you typed it yourself.',
+    body: 'The text pastes into the focused app. LocalFlow snapshots your clipboard first and restores it 2.5 seconds later, unless you copy something in between.',
   },
 ]
 
 const FEATURES = [
   {
     title: 'Nothing leaves your machine',
-    body: 'No account, no server, no telemetry. The only network request LocalFlow ever makes on its own is the one-time Whisper model download.',
+    body: 'No account, no server, no telemetry. The only things it ever phones home for are the one-time model download and the update check, which you can turn off.',
   },
   {
     title: 'Your choice of model',
-    body: 'From Small English (about 500 MB) to Large v3 Turbo. Models download once and are cached locally.',
+    body: 'It ships on Large v3 Turbo, the most accurate option. Drop to Small English, about 500 MB, when speed matters more.',
   },
   {
     title: 'Optional cleanup',
-    body: 'A local Ollama model or Apple’s on-device intelligence fixes punctuation and filler words before the text lands.',
+    body: 'Cleanup is off by default. When you enable it, LocalFlow prefers Apple Intelligence and falls back to a local Ollama model.',
   },
   {
     title: 'Snippets and corrections',
-    body: 'Teach it the words it gets wrong and expand shortcuts as you speak.',
+    body: 'Fix a word once and it learns. LocalFlow diffs your edit against what it pasted, offers the correction, and biases the decoder so it doesn\'t happen again.',
   },
   {
-    title: 'Set it and forget it',
-    body: 'Menubar-only with no Dock icon. Starts at login and comes back on its own if it ever crashes.',
+    title: 'Overlapping dictations',
+    body: 'Start another dictation while the last one transcribes. LocalFlow reassembles the results in the order you spoke them.',
   },
   {
-    title: 'Safe automatic updates',
-    body: 'Sparkle updates verified by two independent signatures. Anything that fails the check is discarded, not installed.',
+    title: 'Writing style by app',
+    body: 'Dictate into Slack and Mail and get different text. Profiles resolve from the app in front of you.',
   },
 ]
 
@@ -53,18 +55,35 @@ const REQUIREMENTS = [
   ['Mac', 'Apple Silicon (M1 or later)'],
   ['macOS', '14 Sonoma or later'],
   ['Memory', '8 GB minimum, 16 GB recommended'],
-  ['Disk', 'About 2 GB for the model cache'],
-  ['Network', 'First launch only, to download the model'],
+  ['Disk', '2 GB minimum, 4 GB comfortable'],
+  ['Language', 'English only'],
+  ['Network', 'For the model download and optional update checks'],
 ]
 
+const SECTION_HEADING = 'font-display text-balance text-3xl font-bold tracking-tight sm:text-4xl'
+const CARD = 'rounded-2xl border border-line bg-paper-deep/60 p-6'
+
 function Waveform() {
+  const waveformRef = useRef<HTMLDivElement>(null)
+  const [isVisible, setIsVisible] = useState(false)
+  const center = (WAVE_BARS.length - 1) / 2
+
+  useEffect(() => {
+    const element = waveformRef.current
+    if (!element) return
+
+    const observer = new IntersectionObserver(([entry]) => setIsVisible(entry.isIntersecting))
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
+
   return (
-    <div className="flex h-24 items-center justify-center gap-1.5" aria-hidden="true">
+    <div ref={waveformRef} className="waveform flex h-32 items-center justify-center gap-3" data-playing={isVisible} aria-hidden="true">
       {WAVE_BARS.map((height, i) => (
         <span
           key={i}
-          className="wave-bar w-1.5 rounded-full bg-ink"
-          style={{ height: `${height}%`, animationDelay: `${(i % 7) * 0.13}s`, opacity: 0.85 - Math.abs(i - WAVE_BARS.length / 2) * 0.045 }}
+          className="wave-bar w-2.5 rounded-full bg-ink"
+          style={{ height: `${height}%`, animationDelay: `${Math.abs(i - center) * 0.06}s`, opacity: 0.85 - Math.abs(i - center) * 0.045 }}
         />
       ))}
     </div>
@@ -76,11 +95,12 @@ function DownloadButton({ large = false }: { large?: boolean }) {
     <a
       href={DOWNLOAD_URL}
       className={`inline-flex items-center gap-2.5 rounded-full bg-rec font-medium text-paper shadow-[0_2px_12px_rgba(229,72,77,0.35)] transition hover:bg-rec-deep ${
-        large ? 'px-8 py-3.5 text-base' : 'px-6 py-2.5 text-sm'
+        large ? 'px-8 py-3.5 text-base' : 'px-4 py-2.5 text-sm sm:px-6'
       }`}
     >
       <span className="rec-dot inline-block h-2 w-2 rounded-full bg-paper" />
-      Download for macOS
+      <span className="sm:hidden">Download</span>
+      <span className="hidden sm:inline">Download for macOS</span>
     </a>
   )
 }
@@ -94,7 +114,7 @@ export default function App() {
             LocalFlow
             <span className="rec-dot mt-0.5 inline-block h-2 w-2 rounded-full bg-rec" />
           </a>
-          <div className="flex items-center gap-6 text-sm text-ink-soft">
+          <div className="flex items-center gap-3 text-sm text-ink-soft sm:gap-6">
             <a href="#how" className="hidden transition-colors hover:text-ink sm:block">How it works</a>
             <a href="#privacy" className="hidden transition-colors hover:text-ink sm:block">Privacy</a>
             <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="transition-colors hover:text-ink">
@@ -105,19 +125,19 @@ export default function App() {
         </nav>
       </header>
 
-      <main id="top" className="mx-auto max-w-5xl px-6">
+      <main className="mx-auto max-w-5xl px-6">
         {/* Hero */}
-        <section className="pt-40 pb-16 text-center">
+        <section id="top" className="scroll-mt-20 pt-40 pb-16 text-center">
           <p className="font-mono text-xs tracking-[0.3em] text-ink-faint uppercase">
             For Apple Silicon Macs
           </p>
           <h1 className="font-display mx-auto mt-6 max-w-3xl text-5xl font-bold tracking-tight text-balance sm:text-7xl">
-            Hold a key. Speak. It&rsquo;s typed.
+            Hold Right Option. Speak. It&rsquo;s typed.
           </h1>
           <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-ink-soft">
-            Fully local push-to-talk dictation. Whisper runs on your Mac&rsquo;s
-            Neural Engine and the words land in whatever app has focus. No
-            audio ever leaves your machine.
+            Fully local push-to-talk dictation. Whisper runs on-device through
+            CoreML and the words land in whatever app has focus. No audio ever
+            leaves your machine.
           </p>
           <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
             <DownloadButton large />
@@ -125,27 +145,28 @@ export default function App() {
               href={GITHUB_URL}
               target="_blank"
               rel="noreferrer"
-              className="rounded-full border border-line bg-paper px-8 py-3.5 text-base font-medium transition-colors hover:border-ink-faint"
+              className="rounded-full border border-ink-faint bg-paper px-8 py-3.5 text-base font-medium transition-colors hover:border-ink"
             >
               View on GitHub
             </a>
           </div>
           <p className="mt-5 font-mono text-xs text-ink-faint">
-            v1.0.0 · free and open source · signed and notarized by Apple
+            Free and open source · signed and notarized by Apple
           </p>
           <div className="mt-14">
+            {/* TODO: Replace this slot with a real LocalFlow product capture when one is available. */}
             <Waveform />
           </div>
         </section>
 
         {/* How it works */}
-        <section id="how" className="scroll-mt-24 border-t border-line py-20">
-          <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
-            Four seconds, start to finish
+        <section id="how" className="scroll-mt-20 border-t border-line py-20">
+          <h2 className={SECTION_HEADING}>
+            Sub-second on release
           </h2>
           <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {STEPS.map((step, i) => (
-              <div key={step.title} className="rounded-2xl border border-line bg-paper-deep/60 p-6">
+              <div key={step.title} className={CARD}>
                 <span className="font-mono text-xs text-rec">0{i + 1}</span>
                 <h3 className="font-display mt-3 text-lg font-semibold">{step.title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-ink-soft">{step.body}</p>
@@ -155,13 +176,13 @@ export default function App() {
         </section>
 
         {/* Features */}
-        <section className="border-t border-line py-20">
-          <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
+        <section id="features" className="scroll-mt-20 border-t border-line py-20">
+          <h2 className={SECTION_HEADING}>
             Built like a good Mac citizen
           </h2>
-          <div className="mt-10 grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {FEATURES.map((feature) => (
-              <div key={feature.title}>
+              <div key={feature.title} className={CARD}>
                 <h3 className="font-display text-lg font-semibold">{feature.title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-ink-soft">{feature.body}</p>
               </div>
@@ -169,9 +190,17 @@ export default function App() {
           </div>
         </section>
 
+        {/* Command mode */}
+        <section id="command-mode" className="scroll-mt-20 border-t border-line py-20">
+          <h2 className={SECTION_HEADING}>Edit with your voice</h2>
+          <p className="mt-6 max-w-2xl leading-relaxed text-ink-soft">
+            Hold the second key and say "make this shorter" with text selected. LocalFlow rewrites it in place. With nothing selected, it generates at the cursor.
+          </p>
+        </section>
+
         {/* Privacy */}
-        <section id="privacy" className="scroll-mt-24 border-t border-line py-20">
-          <h2 className="font-display max-w-2xl text-4xl font-bold tracking-tight text-balance sm:text-5xl">
+        <section id="privacy" className="scroll-mt-20 border-t border-line py-20">
+          <h2 className={`${SECTION_HEADING} max-w-2xl`}>
             No account. No server. <span className="text-rec">No telemetry.</span>
           </h2>
           <div className="mt-8 grid max-w-3xl gap-5 text-ink-soft">
@@ -184,8 +213,9 @@ export default function App() {
             <p>
               Every release is built in a public GitHub workflow with
               provenance you can verify with one command, and the repository
-              runs static analysis on every push. The permissions it asks for,
-              and exactly what they are used for, are written down in{' '}
+              runs static analysis on every push to main and every pull request.
+              It asks for Microphone access to capture dictation and
+              Accessibility access to paste into the focused app. More detail is in{' '}
               <a
                 href="https://github.com/NikAtNight/localflow/blob/main/SECURITY.md"
                 target="_blank"
@@ -200,8 +230,8 @@ export default function App() {
         </section>
 
         {/* Requirements */}
-        <section className="border-t border-line py-20">
-          <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Requirements</h2>
+        <section id="requirements" className="scroll-mt-20 border-t border-line py-20">
+          <h2 className={SECTION_HEADING}>Requirements</h2>
           <dl className="mt-8 max-w-2xl divide-y divide-line border-y border-line">
             {REQUIREMENTS.map(([label, value]) => (
               <div key={label} className="flex items-baseline justify-between gap-6 py-3.5">
@@ -211,22 +241,22 @@ export default function App() {
             ))}
           </dl>
           <p className="mt-4 max-w-2xl text-sm text-ink-faint">
-            On macOS 26 with Apple Intelligence, transcript cleanup and command
-            mode run on Apple&rsquo;s own on-device model. Everything else works
-            from macOS 14 up.
+            On macOS 14 and 15, transcript cleanup and command mode use a local
+            Ollama model instead. On macOS 26 with Apple Intelligence, they use
+            Apple&rsquo;s on-device model.
           </p>
         </section>
 
         {/* Download band */}
-        <section className="border-t border-line py-24 text-center">
-          <h2 className="font-display text-4xl font-bold tracking-tight sm:text-5xl">
+        <section id="download" className="scroll-mt-20 border-t border-line py-20 text-center">
+          <h2 className={SECTION_HEADING}>
             Your words never left.
           </h2>
           <div className="mt-8">
             <DownloadButton large />
           </div>
           <p className="mt-5 font-mono text-xs text-ink-faint">
-            macOS 14+ · Apple Silicon · about 12 MB
+            macOS 14+ · Apple Silicon · 4.4 MB download
           </p>
         </section>
       </main>
