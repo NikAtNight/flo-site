@@ -1,7 +1,3 @@
-# localflow-site
+# LocalFlow site
 
-Marketing site for LocalFlow (github.com/NikAtNight/localflow).
-Own brand, separate from the portfolio: cream paper background, ink text,
-recording-red accent, Bricolage Grotesque display, animated waveform signature.
-
-Vite + React + TS + Tailwind 4. `npm run dev` / `npm run build`. Static dist/.
+This folder is a directly deployable static site. Open `index.html` in a browser or serve the folder with any static host. It uses no framework, package manager, build step, or web fonts.
