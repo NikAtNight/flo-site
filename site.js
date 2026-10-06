@@ -263,6 +263,12 @@
     const hudCanvas = $('[data-hud-canvas]');
     const key = $('[data-talk-key]');
     const tabs = $$('[data-scenario]');
+    // The header walkie-talkie mirrors the demo: talking while the key is held, thinking while it transcribes.
+    const walkie = $('.wordmark .walkie');
+    const setWalkie = (mode) => {
+      walkie.classList.toggle('talking', mode === 'talking');
+      walkie.classList.toggle('thinking', mode === 'thinking');
+    };
 
     let scenarioName = 'mail';
     let timeline = wordTimeline(scenarios.mail.spoken);
@@ -315,6 +321,7 @@
       hud.classList.remove('status');
       hud.classList.add('visible', 'recording');
       key.classList.add('down');
+      setWalkie('talking');
     }
 
     function release() {
@@ -323,10 +330,12 @@
       hud.classList.remove('recording');
       if (revealed === 0) {
         state = 'idle';
+        setWalkie('idle');
         setStatus('Nothing heard', 1100);
         return;
       }
       state = 'processing';
+      setWalkie('thinking');
       setStatus('<span class="dots"><i></i><i></i><i></i></span>');
       const complete = revealed >= timeline.length - 1;
       const words = timeline.slice(0, revealed).map((entry) => entry.word).join(' ');
@@ -335,6 +344,7 @@
         body.innerHTML = `<span class="pasted">${html}</span><span class="cursor"></span>`;
         hideHud();
         state = 'idle';
+        setWalkie('idle');
         if (!userDriven) autoTimer = setTimeout(nextAutoScenario, 3400);
       }, 650);
     }
@@ -344,6 +354,7 @@
       key.classList.remove('down');
       hud.classList.remove('recording');
       state = 'idle';
+      setWalkie('idle');
       setStatus('Cancelled', 1000);
     }
 
@@ -491,7 +502,7 @@
 
   // Point every download button at the latest DMG ---------------------------
 
-  fetch('https://api.github.com/repos/NikAtNight/localflow/releases/latest', { headers: { Accept: 'application/vnd.github+json' } })
+  fetch('https://api.github.com/repos/NikAtNight/walkie/releases/latest', { headers: { Accept: 'application/vnd.github+json' } })
     .then((response) => (response.ok ? response.json() : Promise.reject(response.status)))
     .then((release) => {
       const dmg = (release.assets || []).find((asset) => asset.name.endsWith('.dmg'));

@@ -54,7 +54,19 @@ h1, h2, h3 { font-family: var(--display); text-wrap: balance; }
   -webkit-backdrop-filter: blur(18px) saturate(1.4);
 }
 .wordmark { display: inline-flex; align-items: center; gap: 8px; font-family: var(--display); font-size: 18px; font-weight: 700; letter-spacing: -0.01em; text-decoration: none; }
-.wordmark svg { width: 22px; height: 22px; fill: none; stroke: var(--text); stroke-width: 2.4; stroke-linecap: round; }
+.wordmark svg { width: 24px; height: 24px; fill: var(--text); overflow: visible; }
+.walkie .wave { fill: none; stroke: var(--pink); stroke-width: 1.6; stroke-linecap: round; opacity: 0; }
+.walkie .dot { opacity: 0; }
+.walkie .ptt { transition: transform 120ms ease; }
+.walkie.talking .ptt, .wordmark:hover .walkie .ptt { transform: translateX(1.2px); }
+.walkie.talking .wave, .wordmark:hover .walkie .wave { animation: walkie-wave 660ms ease-out infinite; }
+.walkie.talking .wave-2, .wordmark:hover .walkie .wave-2 { animation-delay: 160ms; }
+.walkie.thinking .dot-1 { opacity: 1; }
+.walkie.thinking .dot-2 { animation: walkie-dot-2 660ms step-end infinite; }
+.walkie.thinking .dot-3 { animation: walkie-dot-3 660ms step-end infinite; }
+@keyframes walkie-wave { 0% { opacity: 0.25; } 35% { opacity: 1; } 100% { opacity: 0.25; } }
+@keyframes walkie-dot-2 { 0% { opacity: 0; } 33% { opacity: 1; } }
+@keyframes walkie-dot-3 { 0% { opacity: 0; } 66% { opacity: 1; } }
 .nav-links { display: flex; align-items: center; gap: 24px; color: var(--muted); font-size: 15px; }
 .nav-links > a:not(.button) { text-decoration: none; }
 .nav-links > a:not(.button):hover { color: var(--text); }
@@ -317,6 +329,7 @@ h3 { font-size: 21px; font-weight: 700; letter-spacing: -0.015em; }
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
+  .walkie.talking .wave, .walkie.thinking .dot, .wordmark:hover .walkie .wave { animation: none; opacity: 1; }
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
   .rewrite-before { opacity: 0.4; text-decoration: line-through; }
   .rewrite-cmd, .rewrite-after { opacity: 1; }
