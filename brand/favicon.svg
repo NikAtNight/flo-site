@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+<style>.tile{fill:#fff;stroke:#ddd}.wave{fill:#000}@media(prefers-color-scheme:dark){.tile{fill:#000;stroke:#333}.wave{fill:#fff}}</style>
+<rect class="tile" x="32" y="32" width="960" height="960" rx="224" fill="#fff" stroke="#ddd" stroke-width="4"/>
+<g class="wave" fill="#000"><circle cx="142.00" cy="512.00" r="20.63"/><circle cx="203.67" cy="430.01" r="24.19"/><circle cx="265.33" cy="383.49" r="27.55"/><circle cx="327.00" cy="392.56" r="27.37"/><circle cx="388.67" cy="453.31" r="23.81"/><circle cx="450.33" cy="539.44" r="20.45"/><circle cx="512.00" cy="613.71" r="20.63"/><circle cx="573.67" cy="643.97" r="24.19"/><circle cx="635.33" cy="617.14" r="27.55"/><circle cx="697.00" cy="544.83" r="27.37"/><circle cx="758.67" cy="458.31" r="23.81"/><circle cx="820.33" cy="395.02" r="20.45"/><circle cx="882.00" cy="382.34" r="20.63"/></g>
+</svg>

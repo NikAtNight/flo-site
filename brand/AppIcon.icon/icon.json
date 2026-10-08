@@ -1,0 +1,28 @@
+{
+  "fill-specializations": [
+    { "value": { "solid": "srgb:1.000,1.000,1.000,1.000" } },
+    { "appearance": "dark", "value": { "solid": "srgb:0.000,0.000,0.000,1.000" } }
+  ],
+  "groups": [
+    {
+      "name": "Wave",
+      "lighting": "individual",
+      "specular": false,
+      "blur-material": null,
+      "translucency": { "enabled": false, "value": 0.5 },
+      "shadow": { "kind": "none", "opacity": 0.0 },
+      "layers": [
+        {
+          "name": "Dotted wave",
+          "image-name": "wave.svg",
+          "glass": false,
+          "fill-specializations": [
+            { "value": { "solid": "srgb:0.000,0.000,0.000,1.000" } },
+            { "appearance": "dark", "value": { "solid": "srgb:1.000,1.000,1.000,1.000" } }
+          ]
+        }
+      ]
+    }
+  ],
+  "supported-platforms": { "squares": "shared" }
+}

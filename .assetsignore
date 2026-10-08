@@ -6,3 +6,10 @@ wrangler.jsonc
 .gitignore
 .DS_Store
 redirect
+design-prototype.html
+brand/generate-icon.swift
+brand/AppIcon.icon
+brand/native
+brand/Flo-icons.zip
+brand/README.md
+brand/icon-preview.html

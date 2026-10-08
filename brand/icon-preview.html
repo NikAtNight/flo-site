@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Flo icon appearances</title>
+<style>
+  body { margin: 0; font: 14px/1.5 system-ui, sans-serif; color: var(--foreground, #222); }
+  .variants { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  figure { margin: 0; padding: 24px 16px; border-radius: var(--radius, 12px); }
+  .light { background: #eee; color: #111; }
+  .dark { background: #141413; color: #eee; }
+  .main { width: 128px; height: 128px; display: block; margin: 0 auto 20px; }
+  figcaption { text-align: center; }
+  .sizes { display: flex; justify-content: center; align-items: end; gap: 16px; margin-top: 24px; }
+  .sizes span { display: grid; justify-items: center; gap: 8px; font-size: 10px; }
+  details { margin-top: 18px; }
+  summary { cursor: pointer; min-height: 44px; }
+  p { margin: 8px 0; }
+  code { font-size: 12px; overflow-wrap: anywhere; }
+  @media (max-width: 400px) { .variants { gap: 10px; } .sizes { gap: 8px; } }
+</style>
+<div class="variants">
+  <figure class="light">
+    <img class="main" src="icon-light.svg" alt="Flo light icon, black dotted wave on white">
+    <figcaption>Light</figcaption>
+    <div class="sizes">
+      <span><img src="favicon-light.svg" width="16" height="16" alt="Light favicon at 16 pixels">16</span>
+      <span><img src="icon-light.svg" width="32" height="32" alt="Light icon at 32 pixels">32</span>
+      <span><img src="icon-light.svg" width="48" height="48" alt="Light icon at 48 pixels">48</span>
+    </div>
+  </figure>
+  <figure class="dark">
+    <img class="main" src="icon-dark.svg" alt="Flo dark icon, white dotted wave on black">
+    <figcaption>Dark</figcaption>
+    <div class="sizes">
+      <span><img src="favicon-dark.svg" width="16" height="16" alt="Dark favicon at 16 pixels">16</span>
+      <span><img src="icon-dark.svg" width="32" height="32" alt="Dark icon at 32 pixels">32</span>
+      <span><img src="icon-dark.svg" width="48" height="48" alt="Dark icon at 48 pixels">48</span>
+    </div>
+  </figure>
+</div>
+<details><summary>Assets and verification</summary>
+  <p>The site icon and favicon follow system appearance. The Icon Composer package contains light and dark variants. PNG exports are 1024 × 1024.</p>
+  <p>Native compilation, asset catalog appearance inspection, PNG dimensions, browser appearance switching, ZIP integrity, and <code>git diff --check</code> passed. The light ICNS fallback was inspected at 32px and 256px.</p>
+  <p>The website, prototypes, and icon assets were updated, and the matching assets are applied in the localflow app checkout. Dock behavior has not been tested in a running app. The older-macOS ICNS fallback uses the light icon.</p>
+  <p>A single Swift generator rebuilds the vector artwork, web assets, and PNG exports. Produced and checked by the main agent.</p>
+</details>
+</html>

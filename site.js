@@ -1,5 +1,6 @@
 (() => {
-  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let reducedMotion = motionPreference.matches;
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -247,7 +248,7 @@
 
   // Demo --------------------------------------------------------------------
 
-  const demo = $('#demo');
+  const demo = $('[data-demo]');
   if (demo) setupDemo();
 
   function setupDemo() {
@@ -255,6 +256,7 @@
     const title = $('[data-window-title]');
     const head = $('[data-window-head]');
     const body = $('[data-window-body]');
+    const output = $('[data-output]');
     const hud = $('[data-hud]');
     const panel = $('.hud-panel', hud);
     const hudText = $('[data-hud-text]');
@@ -262,194 +264,211 @@
     const hudStatus = $('[data-hud-status]');
     const hudCanvas = $('[data-hud-canvas]');
     const key = $('[data-talk-key]');
+    const controlStatus = $('[data-control-status]');
     const tabs = $$('[data-scenario]');
-    // The header mark mirrors the demo: talking while the key is held, thinking while it transcribes.
-    // Same dots as the app's menu bar icon, on its 24-unit grid.
-    const wordmark = $('.wordmark');
-    const markDots = $$('.mark circle', wordmark);
-    const idleDots = [[2, 12], [5.84, 8.03], [9.5, 10.74], [11.56, 16.01], [15.23, 17.42], [17.78, 12.38], [22, 12]];
-    const dotRow = (y) => [0, 1, 2, 3, 4].map((i) => [4 + i * 4, y(i)]);
-    let markTimer = 0;
-    function drawMark(points, radius, lit = points.length) {
-      markDots.forEach((dot, i) => {
-        const [x, y] = points[i] || [12, 12];
-        dot.setAttribute('cx', x);
-        dot.setAttribute('cy', y.toFixed(2));
-        dot.setAttribute('r', points[i] ? radius : 0);
-        dot.setAttribute('opacity', i < lit ? 1 : 0.25);
-      });
-    }
-    function setMark(mode) {
-      clearInterval(markTimer);
-      if (mode === 'idle') { drawMark(idleDots, 1.55); return; }
-      let step = reducedMotion ? 4 : 0;
-      const draw = mode === 'talking'
-        ? () => drawMark(dotRow((i) => 12 - 5 * Math.sin((step % 8) * 0.8 + i * 1.1)), 1.7)
-        : () => drawMark(dotRow(() => 12), 1.7, (step % 5) + 1);
-      draw();
-      if (!reducedMotion) markTimer = setInterval(() => { step += 1; draw(); }, mode === 'talking' ? 110 : 220);
-    }
-    wordmark.addEventListener('pointerenter', () => { if (state === 'idle') setMark('talking'); });
-    wordmark.addEventListener('pointerleave', () => { if (state === 'idle') setMark('idle'); });
-
+    const cards = $$('[data-theme]');
     let scenarioName = 'mail';
     let timeline = wordTimeline(scenarios.mail.spoken);
-    let state = 'idle'; // idle | recording | processing
+    let state = 'idle';
+    let activeInput = null;
     let pressedAt = 0;
     let revealed = 0;
     let level = 0;
-    let userDriven = reducedMotion;
-    let autoTimer = 0;
-    let statusTimer = 0;
+    let processTimer = 0;
     let hudDraw = renderers.classic();
     let hudSize = fitCanvas(hudCanvas);
+    let hudNeedsDraw = true;
+    let galleryNeedsDraw = true;
 
-    function showScenario(name, animate = true) {
-      scenarioName = name;
-      timeline = wordTimeline(scenarios[name].spoken);
-      tabs.forEach((tab) => tab.setAttribute('aria-selected', String(tab.dataset.scenario === name)));
-      const apply = () => {
-        win.className = `window ${name}`;
-        title.textContent = scenarios[name].title;
-        head.innerHTML = scenarios[name].head;
-        body.innerHTML = '<span class="cursor"></span>';
-      };
-      if (!animate) { apply(); return; }
-      win.classList.add('swapping');
-      setTimeout(() => { apply(); }, 200);
+    function setState(next) {
+      state = next;
+      demo.dataset.state = state;
+      key.disabled = state === 'processing';
+      key.setAttribute('aria-pressed', String(state === 'recording'));
+      key.classList.toggle('down', state === 'recording');
+      key.setAttribute('aria-label', state === 'recording' && activeInput === 'activation'
+        ? 'Finish example dictation' : 'Hold to try dictation');
+      tabs.forEach((tab) => { tab.disabled = state === 'processing'; });
     }
 
-    function setStatus(html, duration) {
-      hudStatus.innerHTML = html;
-      hud.classList.add('status');
-      clearTimeout(statusTimer);
-      if (duration) statusTimer = setTimeout(hideHud, duration);
+    function announce(message) {
+      controlStatus.textContent = message;
+      demo.classList.toggle('has-status', Boolean(message));
+    }
+
+    function showScenario(name) {
+      scenarioName = name;
+      timeline = wordTimeline(scenarios[name].spoken);
+      tabs.forEach((tab) => {
+        const selected = tab.dataset.scenario === name;
+        tab.setAttribute('aria-selected', String(selected));
+        tab.tabIndex = selected ? 0 : -1;
+      });
+      win.className = `window ${name}`;
+      win.setAttribute('aria-labelledby', `tab-${name}`);
+      title.textContent = scenarios[name].title;
+      head.innerHTML = scenarios[name].head;
+      body.innerHTML = '<span class="cursor"></span>';
+    }
+
+    function showOutput() {
+      output.hidden = false;
+      resizeAll();
     }
 
     function hideHud() {
-      hud.classList.remove('visible', 'recording', 'status');
+      hud.classList.remove('visible', 'status');
     }
 
-    function press() {
-      if (state !== 'idle') return;
-      clearTimeout(statusTimer);
-      showScenario(scenarioName, false);
-      state = 'recording';
+    function press(input) {
+      if (state !== 'idle') return false;
+      activeInput = input;
+      showScenario(scenarioName);
+      setState('recording');
       pressedAt = performance.now();
       revealed = 0;
       hudText.textContent = '';
       hudTime.textContent = '0:00';
       panel.classList.add('empty');
       hud.classList.remove('status');
-      hud.classList.add('visible', 'recording');
-      key.classList.add('down');
-      setMark('talking');
+      hud.classList.add('visible');
+      hudNeedsDraw = true;
+      showOutput();
+      announce('Listening to an example');
+      return true;
     }
 
-    function release() {
-      key.classList.remove('down');
-      if (state !== 'recording') return;
-      hud.classList.remove('recording');
+    function release(input) {
+      if (state !== 'recording' || input !== activeInput) return;
+      activeInput = null;
       if (revealed === 0) {
-        state = 'idle';
-        setMark('idle');
-        setStatus('Nothing heard', 1100);
+        setState('idle');
+        hideHud();
+        announce('Hold a little longer to hear the example.');
         return;
       }
-      state = 'processing';
-      setMark('thinking');
-      setStatus('<span class="dots"><i></i><i></i><i></i></span>');
+      // Capture the result before the asynchronous processing step.
       const complete = revealed >= timeline.length - 1;
       const words = timeline.slice(0, revealed).map((entry) => entry.word).join(' ');
-      setTimeout(() => {
-        const html = complete ? scenarios[scenarioName].result : escapeHTML(words);
-        body.innerHTML = `<span class="pasted">${html}</span><span class="cursor"></span>`;
+      const result = complete ? scenarios[scenarioName].result : escapeHTML(words);
+      setState('processing');
+      announce('Transcribing');
+      hudStatus.textContent = 'Transcribing';
+      hud.classList.add('status');
+      processTimer = setTimeout(() => {
+        body.innerHTML = `${result}<span class="cursor"></span>`;
         hideHud();
-        state = 'idle';
-        setMark('idle');
-        if (!userDriven) autoTimer = setTimeout(nextAutoScenario, 3400);
+        setState('idle');
+        announce(`Example pasted into ${scenarioName === 'mail' ? 'Mail' : scenarios[scenarioName].title}`);
       }, 650);
     }
 
     function cancel() {
-      if (state !== 'recording') return;
-      key.classList.remove('down');
-      hud.classList.remove('recording');
-      state = 'idle';
-      setMark('idle');
-      setStatus('Cancelled', 1000);
+      if (state === 'idle') return;
+      clearTimeout(processTimer);
+      activeInput = null;
+      hideHud();
+      setState('idle');
+      announce('Cancelled. Nothing pasted.');
     }
 
-    function takeOver() {
-      if (userDriven) return;
-      userDriven = true;
-      clearTimeout(autoTimer);
-      if (state === 'recording') cancel();
-    }
-
-    // Autoplay until the visitor touches anything.
-    function nextAutoScenario() {
-      if (userDriven) return;
-      const names = Object.keys(scenarios);
-      showScenario(names[(names.indexOf(scenarioName) + 1) % names.length]);
-      autoTimer = setTimeout(autoRun, 1100);
-    }
-
-    function autoRun() {
-      if (userDriven || !inView) { autoTimer = setTimeout(autoRun, 800); return; }
-      press();
-      const holdFor = timeline[timeline.length - 1].at * 1000 + 450;
-      autoTimer = setTimeout(() => { if (!userDriven) release(); }, holdFor);
-    }
-
-    // Input
     key.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return;
       event.preventDefault();
-      key.setPointerCapture(event.pointerId);
-      takeOver();
-      press();
+      if (press(event.pointerId)) key.setPointerCapture(event.pointerId);
     });
-    key.addEventListener('pointerup', release);
-    key.addEventListener('pointercancel', release);
+    key.addEventListener('pointerup', (event) => release(event.pointerId));
+    key.addEventListener('pointercancel', (event) => {
+      if (activeInput === event.pointerId) cancel();
+    });
+    key.addEventListener('lostpointercapture', (event) => {
+      if (state === 'recording' && activeInput === event.pointerId) cancel();
+    });
     key.addEventListener('contextmenu', (event) => event.preventDefault());
-    key.addEventListener('keydown', (event) => {
-      if ((event.key === ' ' || event.key === 'Enter') && !event.repeat) {
-        event.preventDefault();
-        takeOver();
-        press();
+    // Assistive technology can activate a button without pointer or key events.
+    key.addEventListener('click', (event) => {
+      if (event.detail !== 0) return;
+      if (state === 'recording' && activeInput === 'activation') {
+        release('activation');
+      } else if (press('activation')) {
+        announce('Example started. Activate again to paste.');
       }
     });
+    key.addEventListener('keydown', (event) => {
+      if (event.key !== ' ' && event.key !== 'Enter') return;
+      event.preventDefault();
+      if (!event.repeat) press(event.code);
+    });
     key.addEventListener('keyup', (event) => {
-      if (event.key === ' ' || event.key === 'Enter') release();
+      if (event.key === ' ' || event.key === 'Enter') {
+        event.preventDefault();
+        release(event.code);
+      }
+    });
+    key.addEventListener('blur', () => {
+      if (activeInput === 'Space' || activeInput === 'Enter') cancel();
     });
     window.addEventListener('keydown', (event) => {
       if (event.code === 'AltRight' && !event.repeat) {
         event.preventDefault();
-        takeOver();
-        press();
+        press(event.code);
       } else if (event.key === 'Escape') {
-        takeOver();
         cancel();
       }
     });
     window.addEventListener('keyup', (event) => {
-      if (event.code === 'AltRight') release();
+      if (event.code === 'AltRight') release(event.code);
     });
-    window.addEventListener('blur', release);
+    window.addEventListener('blur', cancel);
+    $('[data-close-demo]').addEventListener('click', () => {
+      cancel();
+      hideHud();
+      output.hidden = true;
+      announce('');
+      key.focus({ preventScroll: true });
+    });
+
     tabs.forEach((tab) => tab.addEventListener('click', () => {
-      takeOver();
-      if (state === 'recording') cancel();
-      if (tab.dataset.scenario !== scenarioName) showScenario(tab.dataset.scenario);
+      if (state === 'processing') return;
+      cancel();
+      hideHud();
+      showScenario(tab.dataset.scenario);
+      announce('');
     }));
-
-    // Theme picker
-    const cards = $$('[data-theme]');
     cards.forEach((card) => card.addEventListener('click', () => {
-      cards.forEach((other) => other.setAttribute('aria-checked', String(other === card)));
+      cards.forEach((other) => {
+        other.setAttribute('aria-checked', String(other === card));
+        other.tabIndex = other === card ? 0 : -1;
+      });
       hudDraw = renderers[card.dataset.theme]();
+      hudNeedsDraw = true;
+      hud.classList.add('visible');
+      showOutput();
+      if (state === 'idle') {
+        hud.classList.remove('status');
+        panel.classList.add('empty');
+        announce(`${card.textContent.trim()} selected`);
+      }
     }));
 
-    // Gallery canvases
+    // Tabs and theme radios both use one tab stop and arrow-key selection.
+    function bindArrowKeys(items) {
+      items.forEach((item, index) => item.addEventListener('keydown', (event) => {
+        let next;
+        if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (index + 1) % items.length;
+        else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (index - 1 + items.length) % items.length;
+        else if (event.key === 'Home') next = 0;
+        else if (event.key === 'End') next = items.length - 1;
+        else return;
+        event.preventDefault();
+        if (items[next].disabled) return;
+        items[next].click();
+        items[next].focus();
+      }));
+    }
+    bindArrowKeys(tabs);
+    bindArrowKeys(cards);
+
     const gallery = cards.map((card, index) => ({
       canvas: $('canvas', card),
       draw: renderers[card.dataset.theme](),
@@ -457,70 +476,86 @@
       size: null,
       visible: false,
     }));
-
-    let inView = false;
+    let hudInView = false;
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
-        if (entry.target === demo) inView = entry.isIntersecting;
+        if (entry.target === hud) hudInView = entry.isIntersecting;
         const item = gallery.find((g) => g.canvas === entry.target);
         if (item) item.visible = entry.isIntersecting;
       });
+      galleryNeedsDraw = true;
+      hudNeedsDraw = true;
     }, { threshold: 0.05 });
-    observer.observe(demo);
+    observer.observe(hud);
     gallery.forEach((item) => observer.observe(item.canvas));
 
     function resizeAll() {
       hudSize = fitCanvas(hudCanvas);
       gallery.forEach((item) => { item.size = fitCanvas(item.canvas); });
+      galleryNeedsDraw = true;
+      hudNeedsDraw = true;
     }
     window.addEventListener('resize', resizeAll, { passive: true });
+    motionPreference.addEventListener('change', (event) => {
+      reducedMotion = event.matches;
+      galleryNeedsDraw = true;
+      hudNeedsDraw = true;
+    });
     resizeAll();
 
-    // Frame loop
     let last = performance.now();
     function frame(now) {
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
       const t = reducedMotion ? 2.4 : now / 1000;
-
       let target = 0.03;
       if (state === 'recording') {
         const elapsed = (now - pressedAt) / 1000;
         while (revealed < timeline.length - 1 && timeline[revealed].at <= elapsed) revealed += 1;
-        const speaking = revealed < timeline.length - 1 && elapsed > 0.2;
-        const current = timeline[Math.max(0, revealed - 1)];
-        const pausing = current && /[,.?!]$/.test(current.word || '') && elapsed - current.at < 0.3;
-        if (speaking && !pausing) target = 0.35 + 0.6 * Math.abs(Math.sin(elapsed * 10.5)) * (0.6 + 0.4 * Math.sin(elapsed * 2.7));
+        if (revealed < timeline.length - 1 && elapsed > 0.2) {
+          target = 0.35 + 0.6 * Math.abs(Math.sin(elapsed * 10.5));
+        }
         const text = timeline.slice(0, revealed).map((entry) => entry.word).join(' ');
         if (hudText.textContent !== text) {
           hudText.textContent = text;
           panel.classList.toggle('empty', !text);
-          const box = hudText.parentElement;
-          box.scrollTop = box.scrollHeight;
+          hudText.parentElement.scrollTop = hudText.parentElement.scrollHeight;
         }
         const seconds = Math.floor(elapsed);
         hudTime.textContent = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
       }
       level += (target - level) * (1 - Math.exp(-dt * 16));
-
-      if (inView && hud.classList.contains('visible')) {
+      if (hudInView && hud.classList.contains('visible') && (!reducedMotion || hudNeedsDraw)) {
         const { context, width, height } = hudSize;
         context.clearRect(0, 0, width, height);
-        hudDraw(context, width, height, t, reducedMotion ? (state === 'recording' ? 0.6 : 0.1) : level, dt);
+        hudDraw(context, width, height, t, reducedMotion ? 0.6 : level, reducedMotion ? 3 : dt);
+        hudNeedsDraw = false;
       }
-      gallery.forEach((item) => {
-        if (!item.visible || !item.size) return;
-        const { context, width, height } = item.size;
-        context.clearRect(0, 0, width, height);
-        item.draw(context, width, height, t + item.seed, reducedMotion ? 0.6 : syntheticLevel(t, item.seed), dt);
-      });
+      if (!reducedMotion || galleryNeedsDraw) {
+        gallery.forEach((item) => {
+          if (!item.visible || !item.size) return;
+          const { context, width, height } = item.size;
+          context.clearRect(0, 0, width, height);
+          item.draw(context, width, height, t + item.seed, reducedMotion ? 0.6 : syntheticLevel(t, item.seed), reducedMotion ? 3 : dt);
+        });
+        galleryNeedsDraw = false;
+      }
       requestAnimationFrame(frame);
     }
-
-    showScenario('mail', false);
+    showScenario('mail');
     requestAnimationFrame(frame);
-    if (!userDriven) autoTimer = setTimeout(autoRun, 1600);
   }
+
+  function openTargetDetails() {
+    const target = document.getElementById(location.hash.slice(1));
+    if (target?.tagName === 'DETAILS') target.open = true;
+  }
+  window.addEventListener('hashchange', openTargetDetails);
+  $$('a[href^="#"]').forEach((link) => link.addEventListener('click', () => {
+    const target = document.getElementById(link.getAttribute('href').slice(1));
+    if (target?.tagName === 'DETAILS') target.open = true;
+  }));
+  openTargetDetails();
 
   // Point every download button at the latest DMG ---------------------------
 
@@ -529,10 +564,11 @@
     .then((release) => {
       const dmg = (release.assets || []).find((asset) => asset.name.endsWith('.dmg'));
       if (!dmg) return;
-      $$('[data-download]').forEach((link) => { link.href = dmg.browser_download_url; });
-      const meta = $('[data-release-meta]');
       const megabytes = (dmg.size / 1e6).toFixed(0);
-      if (meta) meta.textContent = `${release.tag_name} · ${megabytes} MB · macOS 14+ on Apple Silicon · MIT license`;
+      $$('[data-download]').forEach((link) => {
+        link.href = dmg.browser_download_url;
+        link.title = `Flo ${release.tag_name} · ${megabytes} MB`;
+      });
     })
     .catch(() => { /* Links already point at the latest release page. */ });
 
