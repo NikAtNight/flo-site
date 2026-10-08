@@ -1,13 +1,13 @@
 {
   "$schema": "https://unpkg.com/wrangler/config-schema.json",
-  "name": "walkie-site",
+  "name": "flo-site",
   "compatibility_date": "2026-10-06",
   // Static assets only, no Worker code.
   "assets": {
     "directory": ".",
     "not_found_handling": "single-page-application"
   },
-  "routes": [{ "pattern": "walkie.talix.app", "custom_domain": true }],
+  "routes": [{ "pattern": "flo.talix.app", "custom_domain": true }],
   "workers_dev": false,
   "preview_urls": false
 }

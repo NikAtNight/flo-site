@@ -263,12 +263,34 @@
     const hudCanvas = $('[data-hud-canvas]');
     const key = $('[data-talk-key]');
     const tabs = $$('[data-scenario]');
-    // The header walkie-talkie mirrors the demo: talking while the key is held, thinking while it transcribes.
-    const walkie = $('.wordmark .walkie');
-    const setWalkie = (mode) => {
-      walkie.classList.toggle('talking', mode === 'talking');
-      walkie.classList.toggle('thinking', mode === 'thinking');
-    };
+    // The header mark mirrors the demo: talking while the key is held, thinking while it transcribes.
+    // Same dots as the app's menu bar icon, on its 24-unit grid.
+    const wordmark = $('.wordmark');
+    const markDots = $$('.mark circle', wordmark);
+    const idleDots = [[2, 12], [5.84, 8.03], [9.5, 10.74], [11.56, 16.01], [15.23, 17.42], [17.78, 12.38], [22, 12]];
+    const dotRow = (y) => [0, 1, 2, 3, 4].map((i) => [4 + i * 4, y(i)]);
+    let markTimer = 0;
+    function drawMark(points, radius, lit = points.length) {
+      markDots.forEach((dot, i) => {
+        const [x, y] = points[i] || [12, 12];
+        dot.setAttribute('cx', x);
+        dot.setAttribute('cy', y.toFixed(2));
+        dot.setAttribute('r', points[i] ? radius : 0);
+        dot.setAttribute('opacity', i < lit ? 1 : 0.25);
+      });
+    }
+    function setMark(mode) {
+      clearInterval(markTimer);
+      if (mode === 'idle') { drawMark(idleDots, 1.55); return; }
+      let step = reducedMotion ? 4 : 0;
+      const draw = mode === 'talking'
+        ? () => drawMark(dotRow((i) => 12 - 5 * Math.sin((step % 8) * 0.8 + i * 1.1)), 1.7)
+        : () => drawMark(dotRow(() => 12), 1.7, (step % 5) + 1);
+      draw();
+      if (!reducedMotion) markTimer = setInterval(() => { step += 1; draw(); }, mode === 'talking' ? 110 : 220);
+    }
+    wordmark.addEventListener('pointerenter', () => { if (state === 'idle') setMark('talking'); });
+    wordmark.addEventListener('pointerleave', () => { if (state === 'idle') setMark('idle'); });
 
     let scenarioName = 'mail';
     let timeline = wordTimeline(scenarios.mail.spoken);
@@ -321,7 +343,7 @@
       hud.classList.remove('status');
       hud.classList.add('visible', 'recording');
       key.classList.add('down');
-      setWalkie('talking');
+      setMark('talking');
     }
 
     function release() {
@@ -330,12 +352,12 @@
       hud.classList.remove('recording');
       if (revealed === 0) {
         state = 'idle';
-        setWalkie('idle');
+        setMark('idle');
         setStatus('Nothing heard', 1100);
         return;
       }
       state = 'processing';
-      setWalkie('thinking');
+      setMark('thinking');
       setStatus('<span class="dots"><i></i><i></i><i></i></span>');
       const complete = revealed >= timeline.length - 1;
       const words = timeline.slice(0, revealed).map((entry) => entry.word).join(' ');
@@ -344,7 +366,7 @@
         body.innerHTML = `<span class="pasted">${html}</span><span class="cursor"></span>`;
         hideHud();
         state = 'idle';
-        setWalkie('idle');
+        setMark('idle');
         if (!userDriven) autoTimer = setTimeout(nextAutoScenario, 3400);
       }, 650);
     }
@@ -354,7 +376,7 @@
       key.classList.remove('down');
       hud.classList.remove('recording');
       state = 'idle';
-      setWalkie('idle');
+      setMark('idle');
       setStatus('Cancelled', 1000);
     }
 
@@ -502,7 +524,7 @@
 
   // Point every download button at the latest DMG ---------------------------
 
-  fetch('https://api.github.com/repos/NikAtNight/walkie/releases/latest', { headers: { Accept: 'application/vnd.github+json' } })
+  fetch('https://api.github.com/repos/NikAtNight/flo/releases/latest', { headers: { Accept: 'application/vnd.github+json' } })
     .then((response) => (response.ok ? response.json() : Promise.reject(response.status)))
     .then((release) => {
       const dmg = (release.assets || []).find((asset) => asset.name.endsWith('.dmg'));

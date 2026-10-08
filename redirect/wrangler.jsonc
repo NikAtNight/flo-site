@@ -1,6 +1,6 @@
 {
   "$schema": "https://unpkg.com/wrangler/config-schema.json",
-  // Replaces the old site Worker, so it keeps the old name and domain.
+  // Replaces the original LocalFlow site Worker, so it keeps the old name and domain.
   "name": "localflow-site",
   "main": "worker.js",
   "compatibility_date": "2026-10-06",
