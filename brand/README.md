@@ -27,3 +27,7 @@ zip -qr Flo-icons.zip AppIcon.icon native icon-light.svg icon-dark.svg icon-ligh
 ```
 
 Validation on October 8, 2026 passed native compilation, inspection of Aqua and Dark Aqua icon stacks with `assetutil`, 1024px PNG dimensions, and web appearance switching. The light fallback was inspected at 32px and 256px. The browser preview and source SVGs were checked in light and dark appearances.
+
+## Link preview image
+
+The site root's `og-image.png` is the 1200 x 630 image that Slack and other apps show when someone shares flo.talix.app. Its source is `og-image.html`. To update the image, edit the HTML, open it in a browser sized to 1200 x 630, and export a PNG over `og-image.png`. `og-image.html` is excluded from deployment in `.assetsignore`.
